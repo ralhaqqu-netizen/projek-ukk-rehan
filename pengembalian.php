@@ -202,92 +202,63 @@ $manualDendaValue =
 ?>
 
 <!DOCTYPE html>
-<html>
-
+<html lang="id">
 <head>
-
-    <title>Pengembalian</title>
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pengembalian | Perpustakaan</title>
     <link rel="stylesheet" href="style.css">
-
 </head>
-
 <body>
+<?php include "nav.php"; ?>
+<main class="page">
 
-<div class="container">
-
-    <a class="btn" href="index.php">
-        Kembali
-    </a>
-
-    <a class="btn red" href="logout.php">
-        Logout
-    </a>
-
-    <h2>Pengembalian Buku</h2>
+    <div class="page-head">
+        <h1>Pengembalian buku</h1>
+        <p>Pilih pinjaman yang aktif, lalu catat tanggal pengembalian.</p>
+    </div>
 
     <?php if ($msg) { ?>
-
-        <div class="alert">
-            <?= htmlspecialchars($msg) ?>
-        </div>
-
+        <div class="alert"><?= htmlspecialchars($msg) ?></div>
     <?php } ?>
 
-
-    <!-- FORM PENGEMBALIAN -->
-
     <form method="post" class="form">
-
-        <label>Peminjaman</label>
-
-        <select name="id_peminjaman" id="id_peminjaman" required>
-
-            <?php while ($p = mysqli_fetch_assoc($pinjam)) { ?>
-
-                <?php if ($gunakanTanggalJatuhTempo) {
-                    $tanggalPengembalianDefault = $p['tanggal_kembali'];
-                    $gunakanTanggalJatuhTempo = false;
-                } ?>
-
-                <option
-                    value="<?= $p['id_peminjaman'] ?>"
-                    data-tanggal-kembali="<?= htmlspecialchars($p['tanggal_kembali']) ?>"
+        <h2 class="panel-title">Kembalikan buku</h2>
+        <div class="form-grid">
+            <div class="field wide">
+                <label for="id_peminjaman">Peminjaman</label>
+                <select name="id_peminjaman" id="id_peminjaman" required>
+                    <?php while ($p = mysqli_fetch_assoc($pinjam)) { ?>
+                        <?php if ($gunakanTanggalJatuhTempo) {
+                            $tanggalPengembalianDefault = $p['tanggal_kembali'];
+                            $gunakanTanggalJatuhTempo = false;
+                        } ?>
+                        <option
+                            value="<?= $p['id_peminjaman'] ?>"
+                            data-tanggal-kembali="<?= htmlspecialchars($p['tanggal_kembali']) ?>"
+                        >
+                            ID <?= $p['id_peminjaman'] ?>
+                            - <?= htmlspecialchars($p['nama_anggota']) ?>
+                            - <?= htmlspecialchars($p['judul_buku']) ?>
+                            (<?= $p['jumlah'] ?>)
+                        </option>
+                    <?php } ?>
+                </select>
+            </div>
+            <div class="field">
+                <label for="tanggal_pengembalian">Tanggal pengembalian</label>
+                <input
+                    type="date"
+                    id="tanggal_pengembalian"
+                    name="tanggal_pengembalian"
+                    value="<?= htmlspecialchars($tanggalPengembalianDefault) ?>"
+                    required
                 >
-
-                    ID <?= $p['id_peminjaman'] ?>
-
-                    -
-                    <?= htmlspecialchars($p['nama_anggota']) ?>
-
-                    -
-                    <?= htmlspecialchars($p['judul_buku']) ?>
-
-                    (<?= $p['jumlah'] ?>)
-
-                </option>
-
-            <?php } ?>
-
-        </select>
-
-
-        <label>
-            Tanggal Pengembalian
-        </label>
-
-        <input
-            type="date"
-            id="tanggal_pengembalian"
-            name="tanggal_pengembalian"
-            value="<?= htmlspecialchars($tanggalPengembalianDefault) ?>"
-            required
-        >
-
-        <button name="kembali">
-            Kembalikan Buku
-        </button>
-
+            </div>
+        </div>
+        <div class="form-actions">
+            <button name="kembali">Kembalikan buku</button>
+        </div>
     </form>
 
     <script>
@@ -302,48 +273,39 @@ $manualDendaValue =
         });
     </script>
 
+    <h2 class="panel-title">Riwayat pengembalian</h2>
 
-    <!-- DATA PENGEMBALIAN -->
-
-    <h3>Data Pengembalian</h3>
-
-    <table>
-
-        <tr>
-            <th>ID Pengembalian</th>
-            <th>ID Peminjaman</th>
-            <th>Anggota</th>
-            <th>Tanggal Pengembalian</th>
-        </tr>
-
-        <?php while ($r = mysqli_fetch_assoc($data)) { ?>
-
-            <tr>
-
-                <td>
-                    <?= $r['id_pengembalian'] ?>
-                </td>
-
-                <td>
-                    <?= $r['id_peminjaman'] ?>
-                </td>
-
-                <td>
-                    <?= htmlspecialchars($r['nama_anggota']) ?>
-                </td>
-
-                <td>
-                    <?= $r['tanggal_pengembalian'] ?>
-                </td>
-
-            </tr>
-
+    <div class="table-panel">
+        <?php if (mysqli_num_rows($data) === 0) { ?>
+            <p class="empty">Belum ada buku yang dikembalikan.</p>
+        <?php } else { ?>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Peminjaman</th>
+                        <th>Anggota</th>
+                        <th>Tanggal pengembalian</th>
+                        <th class="num">Denda</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php while ($r = mysqli_fetch_assoc($data)) { ?>
+                    <tr>
+                        <td class="id" data-label="ID"><?= $r['id_pengembalian'] ?></td>
+                        <td class="id" data-label="Peminjaman">#<?= $r['id_peminjaman'] ?></td>
+                        <td class="cell-title" data-label="Anggota"><?= htmlspecialchars($r['nama_anggota']) ?></td>
+                        <td data-label="Tanggal pengembalian"><?= $r['tanggal_pengembalian'] ?></td>
+                        <td class="num" data-label="Denda"><?= (int)$r['denda'] > 0 ? 'Rp ' . number_format((int)$r['denda'], 0, ',', '.') : '-' ?></td>
+                    </tr>
+                <?php } ?>
+                </tbody>
+            </table>
+        </div>
         <?php } ?>
+    </div>
 
-    </table>
-
-</div>
-
+</main>
 </body>
-
 </html>

@@ -1,8 +1,8 @@
 <?php
-$host = "127.0.0.1";
-$user = "root";
-$pass = "root";
-$db   = "db_rehan_xiirpl1_paket4";
+$host = "sql313.infinityfree.com";
+$user = "if0_43221700";
+$pass = "VXvInDP72Jw";
+$db   = "if0_43221700_db_rehan_xiirpl1_paket4";
 
 $conn = mysqli_connect($host, $user, $pass, $db);
 if (!$conn) {

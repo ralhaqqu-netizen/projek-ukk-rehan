@@ -119,78 +119,116 @@ if (isset($_GET['edit'])) {
 $data = mysqli_query($conn, "SELECT * FROM buku ORDER BY id_buku DESC");
 ?>
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
-	<title>Data Buku</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Data Buku | Perpustakaan</title>
 	<link rel="stylesheet" href="style.css">
 </head>
 <body>
-	<div class="container">
-		<a class="btn" href="index.php">Kembali</a>
-		<a class="btn red" href="logout.php">Logout</a>
-		<h2>Data Buku</h2>
-		<?php if ($msg) { ?>
-			<div class="alert"><?=htmlspecialchars($msg)?></div>
-		<?php } ?>
+<?php include "nav.php"; ?>
+<main class="page">
 
-		<form method="post" class="form" enctype="multipart/form-data">
-			<?php if ($edit) { ?>
-				<input type="hidden" name="id_buku" value="<?=$edit['id_buku']?>">
-			<?php } ?>
-			<input name="judul_buku" placeholder="Judul Buku" value="<?=$edit?htmlspecialchars($edit['judul_buku']):''?>" required>
-			<input name="penulis" placeholder="Penulis" value="<?=$edit?htmlspecialchars($edit['penulis']):''?>" required>
-			<input name="penerbit" placeholder="Penerbit" value="<?=$edit?htmlspecialchars($edit['penerbit']):''?>" required>
-			<input type="number" name="tahun_terbit" placeholder="Tahun Terbit" value="<?=$edit?$edit['tahun_terbit']:''?>" required>
-			<input type="number" name="stok" placeholder="Stok" min="0" value="<?=$edit?$edit['stok']:''?>" required>
-			<label for="gambar_buku">Gambar Buku (JPG, PNG, WEBP, maksimal 5 MB)</label>
-			<input type="file" id="gambar_buku" name="gambar_buku" accept="image/jpeg,image/png,image/webp">
+	<div class="page-head">
+		<h1>Data buku</h1>
+		<p>Koleksi buku, stok, dan sampulnya.</p>
+	</div>
+
+	<?php if ($msg) { ?>
+		<div class="alert"><?=htmlspecialchars($msg)?></div>
+	<?php } ?>
+
+	<form method="post" class="form" enctype="multipart/form-data">
+		<h2 class="panel-title"><?= $edit ? 'Ubah buku' : 'Tambah buku' ?></h2>
+		<?php if ($edit) { ?>
+			<input type="hidden" name="id_buku" value="<?=$edit['id_buku']?>">
+		<?php } ?>
+		<div class="form-grid">
+			<div class="field wide">
+				<label for="judul_buku">Judul buku</label>
+				<input id="judul_buku" name="judul_buku" value="<?=$edit?htmlspecialchars($edit['judul_buku']):''?>" required>
+			</div>
+			<div class="field">
+				<label for="penulis">Penulis</label>
+				<input id="penulis" name="penulis" value="<?=$edit?htmlspecialchars($edit['penulis']):''?>" required>
+			</div>
+			<div class="field">
+				<label for="penerbit">Penerbit</label>
+				<input id="penerbit" name="penerbit" value="<?=$edit?htmlspecialchars($edit['penerbit']):''?>" required>
+			</div>
+			<div class="field">
+				<label for="tahun_terbit">Tahun terbit</label>
+				<input type="number" id="tahun_terbit" name="tahun_terbit" value="<?=$edit?$edit['tahun_terbit']:''?>" required>
+			</div>
+			<div class="field">
+				<label for="stok">Stok</label>
+				<input type="number" id="stok" name="stok" min="0" value="<?=$edit?$edit['stok']:''?>" required>
+			</div>
+			<div class="field wide">
+				<label for="gambar_buku">Sampul <span class="hint">(JPG, PNG, atau WEBP, maksimal 5 MB)</span></label>
+				<input type="file" id="gambar_buku" name="gambar_buku" accept="image/jpeg,image/png,image/webp">
+			</div>
 			<?php if ($edit && ($gambarEdit = getBookImagePath($edit['id_buku']))) { ?>
-				<img class="book-cover-preview" src="<?=htmlspecialchars($gambarEdit)?>" alt="Sampul <?=htmlspecialchars($edit['judul_buku'])?>">
+				<div class="field wide">
+					<img class="book-cover-preview" src="<?=htmlspecialchars($gambarEdit)?>" alt="Sampul <?=htmlspecialchars($edit['judul_buku'])?>">
+				</div>
 			<?php } ?>
+		</div>
+		<div class="form-actions">
 			<?php if ($edit) { ?>
-				<button name="update">Simpan Perubahan</button>
+				<button name="update">Simpan perubahan</button>
 				<a class="btn" href="buku.php">Batal</a>
 			<?php } else { ?>
-				<button name="simpan">Tambah Buku</button>
+				<button name="simpan">Tambah buku</button>
 			<?php } ?>
-		</form>
+		</div>
+	</form>
 
+	<div class="table-panel"><div class="table-wrap">
 		<table>
-			<tr>
-				<th>ID</th>
-				<th>Gambar</th>
-				<th>Judul</th>
-				<th>Penulis</th>
-				<th>Penerbit</th>
-				<th>Tahun</th>
-				<th>Stok</th>
-				<th>Aksi</th>
-			</tr>
+			<thead>
+				<tr>
+					<th>ID</th>
+					<th>Sampul</th>
+					<th>Judul</th>
+					<th>Penerbit</th>
+					<th class="num">Tahun</th>
+					<th class="num">Stok</th>
+					<th>Aksi</th>
+				</tr>
+			</thead>
+			<tbody>
 			<?php while ($r = mysqli_fetch_assoc($data)) { ?>
 				<tr>
-					<td><?=$r['id_buku']?></td>
-					<td>
+					<td class="id" data-label="ID"><?=$r['id_buku']?></td>
+					<td data-label="Sampul">
 						<?php $gambar = getBookImagePath($r['id_buku']); ?>
 						<?php if ($gambar) { ?>
 							<img class="book-cover" src="<?=htmlspecialchars($gambar)?>" alt="Sampul <?=htmlspecialchars($r['judul_buku'])?>">
 						<?php } else { ?>
-							<div class="book-cover-placeholder">
-								<span>Belum ada sampul</span>
-							</div>
+							<div class="book-cover-placeholder"><span>Belum ada sampul</span></div>
 						<?php } ?>
 					</td>
-					<td><?=htmlspecialchars($r['judul_buku'])?></td>
-					<td><?=htmlspecialchars($r['penulis'])?></td>
-					<td><?=htmlspecialchars($r['penerbit'])?></td>
-					<td><?=$r['tahun_terbit']?></td>
-					<td><?=$r['stok']?></td>
-					<td>
-						<a class="btn" href="?edit=<?=$r['id_buku']?>">Edit</a>
-						<a class="btn red" href="?hapus=<?=$r['id_buku']?>" onclick="return confirm('Hapus buku?')">Hapus</a>
+					<td class="cell-title" data-label="Judul">
+						<span><?=htmlspecialchars($r['judul_buku'])?>
+						<span class="cell-sub"><?=htmlspecialchars($r['penulis'])?></span></span>
+					</td>
+					<td data-label="Penerbit"><?=htmlspecialchars($r['penerbit'])?></td>
+					<td class="num" data-label="Tahun"><?=$r['tahun_terbit']?></td>
+					<td class="num" data-label="Stok"><?=$r['stok']?></td>
+					<td data-label="Aksi">
+						<span class="actions">
+							<a class="btn" href="?edit=<?=$r['id_buku']?>">Edit</a>
+							<a class="btn red" href="?hapus=<?=$r['id_buku']?>" onclick="return confirm('Hapus buku?')">Hapus</a>
+						</span>
 					</td>
 				</tr>
 			<?php } ?>
+			</tbody>
 		</table>
-	</div>
+	</div></div>
+
+</main>
 </body>
 </html>

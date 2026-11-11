@@ -12,77 +12,107 @@ include "connection.php";
 
 $error = "";
 $sukses = "";
+$old = ['username' => '', 'kelas' => '', 'alamat' => '', 'no_telp' => ''];
 
 if (isset($_POST['daftar'])) {
 
-    $username = mysqli_real_escape_string(
-        $conn,
-        trim($_POST['username'])
-    );
+    $old['username'] = trim($_POST['username'] ?? '');
+    $old['kelas']    = trim($_POST['kelas'] ?? '');
+    $old['alamat']   = trim($_POST['alamat'] ?? '');
+    $old['no_telp']  = trim($_POST['no_telp'] ?? '');
 
-    $password = mysqli_real_escape_string(
-        $conn,
-        $_POST['password']
-    );
+    $password  = $_POST['password'] ?? '';
+    $password2 = $_POST['password2'] ?? '';
 
-    $password2 = mysqli_real_escape_string(
-        $conn,
-        $_POST['password2']
-    );
+    $username = mysqli_real_escape_string($conn, $old['username']);
+    $kelas    = mysqli_real_escape_string($conn, $old['kelas']);
+    $alamat   = mysqli_real_escape_string($conn, $old['alamat']);
+    $telp     = mysqli_real_escape_string($conn, $old['no_telp']);
+    $passEsc  = mysqli_real_escape_string($conn, $password);
 
+    if ($old['username'] === '' || $old['kelas'] === '' || $old['alamat'] === '' || $old['no_telp'] === '') {
 
-    if ($password != $password2) {
+        $error = "Semua kolom wajib diisi.";
+
+    } elseif ($password !== $password2) {
 
         $error = "Konfirmasi password tidak sama.";
 
     } else {
 
-        $cek = mysqli_query($conn, "
+        $cekUser = mysqli_query($conn, "
             SELECT id_users
             FROM users
             WHERE username = '$username'
             LIMIT 1
         ");
 
-        if (mysqli_num_rows($cek) > 0) {
+        /*
+         * Login mencocokkan akun ke anggota lewat nama,
+         * jadi nama anggota dibuat sama dengan username.
+         */
+        $cekAnggota = mysqli_query($conn, "
+            SELECT id_anggota
+            FROM anggota
+            WHERE nama_anggota = '$username'
+            LIMIT 1
+        ");
+
+        if (mysqli_num_rows($cekUser) > 0) {
 
             $error = "Username sudah digunakan.";
+
+        } elseif (mysqli_num_rows($cekAnggota) > 0) {
+
+            $error = "Nama itu sudah terdaftar sebagai anggota. Pakai username lain.";
 
         } else {
 
             /*
              * Akun yang daftar dari halaman ini
-             * otomatis menjadi user biasa.
+             * otomatis menjadi user biasa, sekaligus
+             * dibuatkan data anggotanya.
              */
             $role = "user";
 
-            $query = mysqli_query($conn, "
+            mysqli_begin_transaction($conn);
+
+            $ok = mysqli_query($conn, "
                 INSERT INTO users
                 (username, password, role)
                 VALUES
-                ('$username', '$password', '$role')
+                ('$username', '$passEsc', '$role')
             ");
 
-            if ($query) {
+            $ok = $ok && mysqli_query($conn, "
+                INSERT INTO anggota
+                (nama_anggota, kelas, alamat, no_telp)
+                VALUES
+                ('$username', '$kelas', '$alamat', '$telp')
+            ");
 
-                $sukses = "Pendaftaran berhasil. Silakan login.";
+            if ($ok) {
+
+                mysqli_commit($conn);
+                $sukses = "Pendaftaran berhasil. Akun dan data anggota sudah dibuat, silakan login.";
 
             } else {
 
-                $error = "Pendaftaran gagal: "
-                    . mysqli_error($conn);
+                mysqli_rollback($conn);
+                $error = "Pendaftaran gagal: " . mysqli_error($conn);
             }
         }
     }
 }
 ?>
-
 <!DOCTYPE html>
-<html>
+<html lang="id">
 
 <head>
 
-    <title>Daftar - Perpustakaan</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Daftar | Perpustakaan</title>
 
     <link rel="stylesheet" href="style.css">
 
@@ -90,83 +120,99 @@ if (isset($_POST['daftar'])) {
 
 <body>
 
-<div class="container">
+<div class="auth">
 
-    <h1>Sistem Perpustakaan</h1>
-
-    <h2>Daftar Akun</h2>
-
-
-    <?php if ($error) { ?>
-
-        <div class="alert">
-            <?= htmlspecialchars($error) ?>
+    <aside class="auth-side">
+        <div>
+            <span class="brand"><span class="brand-mark" aria-hidden="true"></span>Perpustakaan</span>
+            <h2>Jadi anggota, lalu pinjam bukunya.</h2>
+            <p>Satu pendaftaran membuat akun login dan data anggota sekaligus.</p>
         </div>
-
-    <?php } ?>
-
-
-    <?php if ($sukses) { ?>
-
-        <div class="alert">
-            <?= htmlspecialchars($sukses) ?>
+        <div class="spines" aria-hidden="true">
+            <span style="--h:120px;--w:30px;--c:#e2a62c"></span>
+            <span style="--h:165px;--w:38px;--c:#1c6b73"></span>
+            <span style="--h:140px;--w:26px;--c:#5fa3a9"></span>
+            <span style="--h:178px;--w:34px;--c:#8a4b3b"></span>
+            <span style="--h:130px;--w:40px;--c:#e9e3d3"></span>
+            <span class="lean" style="--h:150px;--w:30px;--c:#2c7a55"></span>
+            <span style="--h:170px;--w:36px;--c:#e2a62c"></span>
         </div>
+    </aside>
 
-        <p>
-            <a href="login.php">
-                Kembali ke Login
-            </a>
-        </p>
+    <main class="auth-main">
+        <div class="auth-box">
 
-    <?php } else { ?>
+            <h1>Daftar anggota</h1>
+            <p class="lead">Isi data diri dan buat password.</p>
 
+            <?php if ($error) { ?>
+                <div class="alert"><?= htmlspecialchars($error) ?></div>
+            <?php } ?>
 
-        <form method="post" class="form">
+            <?php if ($sukses) { ?>
 
-            <label>Username</label>
+                <div class="alert ok"><?= htmlspecialchars($sukses) ?></div>
 
-            <input
-                type="text"
-                name="username"
-                placeholder="Buat username"
-                required
-            >
+                <a class="btn solid" href="index.php">Ke halaman login</a>
 
+            <?php } else { ?>
 
-            <label>Password</label>
+                <form method="post">
 
-            <input
-                type="password"
-                name="password"
-                placeholder="Buat password"
-                required
-            >
+                    <div class="field">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" maxlength="50"
+                               value="<?= htmlspecialchars($old['username']) ?>"
+                               autocomplete="username" required>
+                        <span class="hint">Dipakai untuk login dan sebagai nama anggota.</span>
+                    </div>
 
+                    <div class="field">
+                        <label for="kelas">Kelas</label>
+                        <input type="text" id="kelas" name="kelas" maxlength="50"
+                               placeholder="Contoh: XII RPL 1"
+                               value="<?= htmlspecialchars($old['kelas']) ?>" required>
+                    </div>
 
-            <label>Konfirmasi Password</label>
+                    <div class="field">
+                        <label for="alamat">Alamat</label>
+                        <input type="text" id="alamat" name="alamat" maxlength="255"
+                               value="<?= htmlspecialchars($old['alamat']) ?>"
+                               autocomplete="street-address" required>
+                    </div>
 
-            <input
-                type="password"
-                name="password2"
-                placeholder="Ulangi password"
-                required
-            >
+                    <div class="field">
+                        <label for="no_telp">No. telepon</label>
+                        <input type="tel" id="no_telp" name="no_telp" maxlength="20"
+                               value="<?= htmlspecialchars($old['no_telp']) ?>"
+                               autocomplete="tel" required>
+                    </div>
 
+                    <div class="field">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password"
+                               autocomplete="new-password" required>
+                    </div>
 
-            <button type="submit" name="daftar">
-                Daftar
-            </button>
+                    <div class="field">
+                        <label for="password2">Ulangi password</label>
+                        <input type="password" id="password2" name="password2"
+                               autocomplete="new-password" required>
+                    </div>
 
-        </form>
+                    <button type="submit" name="daftar">Daftar</button>
 
+                </form>
 
-        <p>
-            Sudah punya akun?
-            <a href="login.php">Login di sini</a>
-        </p>
+                <p class="auth-foot">
+                    Sudah punya akun?
+                    <a href="index.php">Login</a>
+                </p>
 
+            <?php } ?>
 
-    <?php } ?>
+        </div>
+    </main>
 
 </div>
 

@@ -23,19 +23,78 @@ $edit=null;
 if(isset($_GET['edit'])){ $id=(int)$_GET['edit']; $q=mysqli_query($conn,"SELECT * FROM users WHERE id_users=$id"); $edit=mysqli_fetch_assoc($q); }
 $data=mysqli_query($conn,"SELECT * FROM users ORDER BY id_users DESC");
 ?>
-<!DOCTYPE html><html><head><title>Data User</title><link rel="stylesheet" href="style.css"></head><body><div class="container">
-<a class="btn" href="index.php">Kembali</a> <a class="btn red" href="logout.php">Logout</a><h2>Data User</h2>
-<form method="post" class="form">
-<?php if($edit){ ?><input type="hidden" name="id_users" value="<?=$edit['id_users']?>"><?php } ?>
-<input name="username" placeholder="Username" value="<?=$edit?htmlspecialchars($edit['username']):''?>" required>
-<input name="password" placeholder="Password" value="<?=$edit?htmlspecialchars($edit['password']):''?>" required>
-<select name="role">  
-<option value="user" <?=($edit && $edit['role']=='user')?'selected':''?>>User</option>  
-<option value="petugas" <?=($edit && $edit['role']=='petugas')?'selected':''?>>Petugas</option>  
-<option value="admin" <?=($edit && $edit['role']=='admin')?'selected':''?>>Admin</option>  
-</select>
-<?php if($edit){ ?><button name="update">Simpan Perubahan</button> <a class="btn" href="users.php">Batal</a><?php } else { ?><button name="simpan">Tambah User</button><?php } ?>
-</form>
-<table><tr><th>ID</th><th>Username</th><th>Password</th><th>Role</th><th>Aksi</th></tr>
-<?php while($r=mysqli_fetch_assoc($data)){ ?><tr><td><?=$r['id_users']?></td><td><?=htmlspecialchars($r['username'])?></td><td><?=htmlspecialchars($r['password'])?></td><td><?=$r['role']?></td><td><a class="btn" href="?edit=<?=$r['id_users']?>">Edit</a> <a class="btn red" href="?hapus=<?=$r['id_users']?>" onclick="return confirm('Hapus user?')">Hapus</a></td></tr><?php } ?></table>
-</div></body></html>
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Data User | Perpustakaan</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<?php include "nav.php"; ?>
+<main class="page">
+
+	<div class="page-head">
+		<h1>Data user</h1>
+		<p>Akun yang bisa login ke sistem beserta perannya.</p>
+	</div>
+
+	<form method="post" class="form">
+		<h2 class="panel-title"><?= $edit ? 'Ubah user' : 'Tambah user' ?></h2>
+		<?php if ($edit) { ?><input type="hidden" name="id_users" value="<?=$edit['id_users']?>"><?php } ?>
+		<div class="form-grid">
+			<div class="field">
+				<label for="username">Username</label>
+				<input id="username" name="username" value="<?=$edit?htmlspecialchars($edit['username']):''?>" required>
+			</div>
+			<div class="field">
+				<label for="password">Password</label>
+				<input id="password" name="password" value="<?=$edit?htmlspecialchars($edit['password']):''?>" required>
+			</div>
+			<div class="field">
+				<label for="role">Peran</label>
+				<select id="role" name="role">
+					<option value="user" <?=($edit && $edit['role']=='user')?'selected':''?>>User</option>
+					<option value="petugas" <?=($edit && $edit['role']=='petugas')?'selected':''?>>Petugas</option>
+					<option value="admin" <?=($edit && $edit['role']=='admin')?'selected':''?>>Admin</option>
+				</select>
+			</div>
+		</div>
+		<div class="form-actions">
+			<?php if ($edit) { ?>
+				<button name="update">Simpan perubahan</button>
+				<a class="btn" href="users.php">Batal</a>
+			<?php } else { ?>
+				<button name="simpan">Tambah user</button>
+			<?php } ?>
+		</div>
+	</form>
+
+	<div class="table-panel"><div class="table-wrap">
+		<table>
+			<thead>
+				<tr><th>ID</th><th>Username</th><th>Password</th><th>Peran</th><th>Aksi</th></tr>
+			</thead>
+			<tbody>
+			<?php while ($r = mysqli_fetch_assoc($data)) { ?>
+				<tr>
+					<td class="id" data-label="ID"><?=$r['id_users']?></td>
+					<td class="cell-title" data-label="Username"><?=htmlspecialchars($r['username'])?></td>
+					<td data-label="Password"><?=htmlspecialchars($r['password'])?></td>
+					<td data-label="Peran"><span class="badge <?=htmlspecialchars($r['role'])?>"><?=htmlspecialchars($r['role'])?></span></td>
+					<td data-label="Aksi">
+						<span class="actions">
+							<a class="btn" href="?edit=<?=$r['id_users']?>">Edit</a>
+							<a class="btn red" href="?hapus=<?=$r['id_users']?>" onclick="return confirm('Hapus user?')">Hapus</a>
+						</span>
+					</td>
+				</tr>
+			<?php } ?>
+			</tbody>
+		</table>
+	</div></div>
+
+</main>
+</body>
+</html>

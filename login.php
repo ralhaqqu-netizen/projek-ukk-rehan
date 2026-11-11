@@ -43,7 +43,7 @@ if (isset($_POST['login'])) {
 $cariAnggota = mysqli_query($conn, "
     SELECT id_anggota, nama_anggota
     FROM anggota
-    WHERE nama_anggota = '{$user['username']}'
+    WHERE nama_anggota = '" . mysqli_real_escape_string($conn, $user['username']) . "'
     LIMIT 1
 ");
 
@@ -67,11 +67,13 @@ if ($anggotaLogin) {
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="id">
 
 <head>
 
-    <title>Login - Perpustakaan</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login | Perpustakaan</title>
 
     <link rel="stylesheet" href="style.css">
 
@@ -79,55 +81,58 @@ if ($anggotaLogin) {
 
 <body>
 
-<div class="container">
+<div class="auth">
 
-    <h1>Sistem Perpustakaan</h1>
-
-    <h2>Login</h2>
-
-
-    <?php if ($error) { ?>
-
-        <div class="alert">
-            <?= htmlspecialchars($error) ?>
+    <aside class="auth-side">
+        <div>
+            <span class="brand"><span class="brand-mark" aria-hidden="true"></span>Perpustakaan</span>
+            <h2>Pinjam buku, kembalikan tepat waktu.</h2>
+            <p>Masuk untuk mengajukan peminjaman dan melihat riwayatmu.</p>
         </div>
+        <div class="spines" aria-hidden="true">
+            <span style="--h:120px;--w:30px;--c:#e2a62c"></span>
+            <span style="--h:165px;--w:38px;--c:#1c6b73"></span>
+            <span style="--h:140px;--w:26px;--c:#5fa3a9"></span>
+            <span style="--h:178px;--w:34px;--c:#8a4b3b"></span>
+            <span style="--h:130px;--w:40px;--c:#e9e3d3"></span>
+            <span class="lean" style="--h:150px;--w:30px;--c:#2c7a55"></span>
+            <span style="--h:170px;--w:36px;--c:#e2a62c"></span>
+        </div>
+    </aside>
 
-    <?php } ?>
+    <main class="auth-main">
+        <div class="auth-box">
 
+            <h1>Login</h1>
+            <p class="lead">Masukkan username dan password.</p>
 
-    <form method="post" class="form">
+            <?php if ($error) { ?>
+                <div class="alert"><?= htmlspecialchars($error) ?></div>
+            <?php } ?>
 
-        <label>Username</label>
+            <form method="post">
 
-        <input
-            type="text"
-            name="username"
-            placeholder="Masukkan username"
-            required
-        >
+                <div class="field">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" autocomplete="username" required>
+                </div>
 
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required>
+                </div>
 
-        <label>Password</label>
+                <button type="submit" name="login">Login</button>
 
-        <input
-            type="password"
-            name="password"
-            placeholder="Masukkan password"
-            required
-        >
+            </form>
 
+            <p class="auth-foot">
+                Belum punya akun?
+                <a href="daftar.php">Daftar jadi anggota</a>
+            </p>
 
-        <button type="submit" name="login">
-            Login
-        </button>
-
-    </form>
-
-
-    <p>
-        Belum punya akun?
-        <a href="daftar.php">Daftar di sini</a>
-    </p>
+        </div>
+    </main>
 
 </div>
 

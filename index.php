@@ -26,199 +26,35 @@ $total_pengembalian = $data_pengembalian['total'];
 ?>
 
 <!DOCTYPE html>
-<html>
-
+<html lang="id">
 <head>
-
-    <title>Dashboard Perpustakaan</title>
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dashboard | Perpustakaan</title>
     <link rel="stylesheet" href="style.css">
-
-    <style>
-
-        .dashboard {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin: 25px 0;
-        }
-
-        .card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-
-        .card h3 {
-            margin: 0 0 10px;
-            font-size: 17px;
-        }
-
-        .card p {
-            margin: 0;
-            font-size: 30px;
-            font-weight: bold;
-        }
-
-        .menu {
-            margin: 20px 0;
-        }
-
-        .menu a {
-            display: inline-block;
-            margin: 5px;
-            padding: 10px 15px;
-            text-decoration: none;
-        }
-
-        @media (max-width: 800px) {
-
-            .dashboard {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-        }
-
-        @media (max-width: 500px) {
-
-            .dashboard {
-                grid-template-columns: 1fr;
-            }
-
-        }
-
-    </style>
-
 </head>
-
 <body>
+<?php include "nav.php"; ?>
+<main class="page">
 
-<div class="container">
-
-    <h1>Dashboard Perpustakaan</h1>
-
-    <p>
-
-        Login sebagai:
-
-        <b>
-            <?= htmlspecialchars($_SESSION['username']) ?>
-        </b>
-
-        (
-        <?= htmlspecialchars($_SESSION['role']) ?>
-        )
-
-        -
-
-        <a href="logout.php">
-            Logout
-        </a>
-
-    </p>
-
-
-    <div class="menu">
-
-        <a href="index.php">
-            Dashboard
-        </a>
-
-        <a href="buku.php">
-            Data Buku
-        </a>
-
-        <a href="anggota.php">
-            Data Anggota
-        </a>
-
-        <a href="users.php">
-            Data User
-        </a>
-
-        <a href="peminjaman.php">
-            Peminjaman
-        </a>
-
-        <a href="pengembalian.php">
-            Pengembalian
-        </a>
-
+    <div class="page-head">
+        <h1>Halo, <?= htmlspecialchars($_SESSION['username']) ?></h1>
+        <p>Ringkasan isi perpustakaan saat ini.</p>
     </div>
 
+    <section class="stats" aria-label="Ringkasan">
+        <div class="stat"><span class="stat-num"><?= $total_buku ?></span><span class="stat-label">Judul buku</span></div>
+        <div class="stat"><span class="stat-num"><?= $total_stok ?></span><span class="stat-label">Total stok</span></div>
+        <div class="stat"><span class="stat-num"><?= $total_anggota ?></span><span class="stat-label">Anggota</span></div>
+        <div class="stat"><span class="stat-num"><?= $total_peminjaman ?></span><span class="stat-label">Peminjaman</span></div>
+        <div class="stat"><span class="stat-num"><?= $total_pengembalian ?></span><span class="stat-label">Pengembalian</span></div>
+    </section>
 
-    <div class="dashboard">
-
-        <div class="card">
-
-            <h3>
-                Total Buku
-            </h3>
-
-            <p>
-                <?= $total_buku ?>
-            </p>
-
-        </div>
-
-
-        <div class="card">
-
-            <h3>
-                Total Stok
-            </h3>
-
-            <p>
-                <?= $total_stok ?>
-            </p>
-
-        </div>
-
-
-        <div class="card">
-
-            <h3>
-                Total Anggota
-            </h3>
-
-            <p>
-                <?= $total_anggota ?>
-            </p>
-
-        </div>
-
-
-        <div class="card">
-
-            <h3>
-                Total Peminjaman
-            </h3>
-
-            <p>
-                <?= $total_peminjaman ?>
-            </p>
-
-        </div>
-
-
-        <div class="card">
-
-            <h3>
-                Total Pengembalian
-            </h3>
-
-            <p>
-                <?= $total_pengembalian ?>
-            </p>
-
-        </div>
-
+    <div class="actions">
+        <a class="btn solid" href="peminjaman.php">Ajukan peminjaman</a>
+        <a class="btn" href="pengembalian.php">Kembalikan buku</a>
     </div>
 
-</div>
-
+</main>
 </body>
-
 </html>
