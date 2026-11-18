@@ -2,19 +2,41 @@
 include "auth.php";
 include "connection.php";
 
+/* Tarif denda: Rp per hari */
+const TARIF_DENDA = 5000;
+
 $msg = "";
-$selectedDenda = 0;
-$manualDendaValue = 0;
 $sessionAnggotaId = isset($_SESSION['id_anggota']) ? (int)$_SESSION['id_anggota'] : 0;
 $userRole = $_SESSION['role'] ?? 'user';
 $filterAnggota = $userRole === 'user' ? " AND p.id_anggota = $sessionAnggotaId" : "";
 
+/* Hanya admin/petugas yang boleh mengubah denda secara manual */
+$bolehOverride = in_array($userRole, ['admin', 'petugas'], true);
+
+/* Hitung jumlah hari terlambat (0 jika tepat waktu / lebih awal) */
+function hitungHariTerlambat($jatuhTempo, $tglKembali)
+{
+    $jatuh = new DateTime($jatuhTempo);
+    $kembali = new DateTime($tglKembali);
+
+    if ($kembali <= $jatuh) {
+        return 0;
+    }
+
+    return (int)$jatuh->diff($kembali)->days;
+}
+
 if (isset($_POST['kembali'])) {
 
     $pid = (int)$_POST['id_peminjaman'];
-    $tgl = mysqli_real_escape_string($conn, $_POST['tanggal_pengembalian']);
+    $tgl = $_POST['tanggal_pengembalian'] ?? '';
 
-    $overrideDenda = isset($_POST['override_denda']) && $_POST['override_denda'] == '1';
+    $tglValid = preg_match('/^\d{4}-\d{2}-\d{2}$/', $tgl)
+        && checkdate((int)substr($tgl, 5, 2), (int)substr($tgl, 8, 2), (int)substr($tgl, 0, 4));
+
+    $overrideDenda = $bolehOverride
+        && isset($_POST['override_denda'])
+        && $_POST['override_denda'] == '1';
 
     $manualDenda = $overrideDenda
         ? max(0, (int)($_POST['denda_manual'] ?? 0))
@@ -45,23 +67,20 @@ if (isset($_POST['kembali'])) {
         }
     }
 
-    if (empty($details)) {
+    if (!$tglValid) {
+
+        $msg = "Tanggal pengembalian tidak valid.";
+
+    } elseif (empty($details)) {
 
         $msg = "Peminjaman tidak ditemukan atau sudah dikembalikan.";
 
     } else {
 
-        $jatuh = strtotime($tanggalJatuh);
-        $kembali = strtotime($tgl);
+        $hari = hitungHariTerlambat($tanggalJatuh, $tgl);
 
-        $hari = max(
-            0,
-            (int)(($kembali - $jatuh) / 86400)
-        );
-
-        foreach ($details as $row) {
-            $denda += $hari * 1000 * (int)$row['jumlah'];
-        }
+        /* 1 hari = Rp 5.000, 2 hari = Rp 10.000, dst. */
+        $denda = $hari * TARIF_DENDA;
 
         if ($manualDenda !== null) {
             $denda = $manualDenda;
@@ -98,7 +117,7 @@ if (isset($_POST['kembali'])) {
 
             mysqli_commit($conn);
 
-            header("Location: pengembalian.php");
+            header("Location: pengembalian.php?ok=1&denda=" . (int)$denda);
             exit;
 
         } else {
@@ -110,15 +129,26 @@ if (isset($_POST['kembali'])) {
     }
 }
 
+/* Pesan sukses setelah redirect */
+$okMsg = "";
+if (isset($_GET['ok'])) {
+    $dendaOk = (int)($_GET['denda'] ?? 0);
+    $okMsg = $dendaOk > 0
+        ? "Buku berhasil dikembalikan. Denda keterlambatan: Rp " . number_format($dendaOk, 0, ',', '.') . "."
+        : "Buku berhasil dikembalikan. Tidak ada denda.";
+}
 
-/* DATA PEMINJAMAN UNTUK FORM */
+
+/* DATA PEMINJAMAN UNTUK FORM (satu baris per peminjaman) */
 
 $pinjam = mysqli_query($conn, "
     SELECT 
         p.id_peminjaman,
         a.nama_anggota,
-        b.judul_buku,
-        d.jumlah,
+        GROUP_CONCAT(
+            CONCAT(b.judul_buku, ' (', d.jumlah, ')')
+            SEPARATOR ', '
+        ) AS daftar_buku,
         p.tanggal_kembali
     FROM peminjaman p
     JOIN anggota a 
@@ -129,10 +159,15 @@ $pinjam = mysqli_query($conn, "
         ON d.id_buku = b.id_buku
     WHERE p.status = 'Dipinjam'
     $filterAnggota
+    GROUP BY p.id_peminjaman, a.nama_anggota, p.tanggal_kembali
     ORDER BY p.id_peminjaman DESC
 ");
+
 $tanggalPengembalianDefault = $_POST['tanggal_pengembalian'] ?? date('Y-m-d');
-$gunakanTanggalJatuhTempo = !isset($_POST['tanggal_pengembalian']);
+$overrideChecked = $bolehOverride
+    && isset($_POST['override_denda'])
+    && $_POST['override_denda'] == '1';
+$dendaManualDefault = max(0, (int)($_POST['denda_manual'] ?? 0));
 
 
 /* DATA PENGEMBALIAN */
@@ -140,6 +175,7 @@ $gunakanTanggalJatuhTempo = !isset($_POST['tanggal_pengembalian']);
 $data = mysqli_query($conn, "
     SELECT 
         k.*,
+        p.tanggal_kembali AS jatuh_tempo,
         a.nama_anggota
     FROM pengembalian k
     JOIN peminjaman p 
@@ -149,55 +185,6 @@ $data = mysqli_query($conn, "
     WHERE 1=1$filterAnggota
     ORDER BY k.id_pengembalian DESC
 ");
-
-
-/* HITUNG DENDA */
-
-if (
-    isset($_POST['id_peminjaman']) &&
-    !empty($_POST['tanggal_pengembalian'])
-) {
-
-    $selectedPid = (int)$_POST['id_peminjaman'];
-
-    $selectedQ = mysqli_query($conn, "
-        SELECT 
-            p.tanggal_kembali,
-            d.jumlah
-        FROM peminjaman p
-        JOIN peminjaman_detail d
-            ON p.id_peminjaman = d.id_peminjaman
-        WHERE p.id_peminjaman = $selectedPid
-        AND p.status = 'Dipinjam'
-        $filterAnggota
-    ");
-
-    while ($row = mysqli_fetch_assoc($selectedQ)) {
-
-        $jatuh = strtotime($row['tanggal_kembali']);
-
-        $kembali = strtotime(
-            $_POST['tanggal_pengembalian']
-        );
-
-        $hari = max(
-            0,
-            (int)(($kembali - $jatuh) / 86400)
-        );
-
-        $selectedDenda +=
-            $hari * 1000 * (int)$row['jumlah'];
-    }
-}
-
-$manualDendaValue =
-    isset($_POST['override_denda']) &&
-    $_POST['override_denda'] == '1'
-    ? max(
-        0,
-        (int)($_POST['denda_manual'] ?? 0)
-    )
-    : $selectedDenda;
 
 ?>
 
@@ -215,11 +202,15 @@ $manualDendaValue =
 
     <div class="page-head">
         <h1>Pengembalian buku</h1>
-        <p>Pilih pinjaman yang aktif, lalu catat tanggal pengembalian.</p>
+        <p>Pilih pinjaman yang aktif, lalu catat tanggal pengembalian. Denda keterlambatan dihitung otomatis: Rp <?= number_format(TARIF_DENDA, 0, ',', '.') ?> per hari.</p>
     </div>
 
     <?php if ($msg) { ?>
         <div class="alert"><?= htmlspecialchars($msg) ?></div>
+    <?php } ?>
+
+    <?php if ($okMsg) { ?>
+        <div class="alert ok"><?= htmlspecialchars($okMsg) ?></div>
     <?php } ?>
 
     <form method="post" class="form">
@@ -229,18 +220,15 @@ $manualDendaValue =
                 <label for="id_peminjaman">Peminjaman</label>
                 <select name="id_peminjaman" id="id_peminjaman" required>
                     <?php while ($p = mysqli_fetch_assoc($pinjam)) { ?>
-                        <?php if ($gunakanTanggalJatuhTempo) {
-                            $tanggalPengembalianDefault = $p['tanggal_kembali'];
-                            $gunakanTanggalJatuhTempo = false;
-                        } ?>
                         <option
-                            value="<?= $p['id_peminjaman'] ?>"
+                            value="<?= (int)$p['id_peminjaman'] ?>"
                             data-tanggal-kembali="<?= htmlspecialchars($p['tanggal_kembali']) ?>"
+                            <?= (isset($_POST['id_peminjaman']) && (int)$_POST['id_peminjaman'] === (int)$p['id_peminjaman']) ? 'selected' : '' ?>
                         >
-                            ID <?= $p['id_peminjaman'] ?>
+                            ID <?= (int)$p['id_peminjaman'] ?>
                             - <?= htmlspecialchars($p['nama_anggota']) ?>
-                            - <?= htmlspecialchars($p['judul_buku']) ?>
-                            (<?= $p['jumlah'] ?>)
+                            - <?= htmlspecialchars($p['daftar_buku']) ?>
+                            (jatuh tempo <?= htmlspecialchars($p['tanggal_kembali']) ?>)
                         </option>
                     <?php } ?>
                 </select>
@@ -255,6 +243,39 @@ $manualDendaValue =
                     required
                 >
             </div>
+            <div class="field">
+                <label>Keterlambatan</label>
+                <div class="static-value" id="info-hari">-</div>
+            </div>
+            <div class="field">
+                <label>Denda</label>
+                <div class="static-value" id="info-denda">Rp 0</div>
+            </div>
+
+            <?php if ($bolehOverride) { ?>
+            <div class="field">
+                <label for="override_denda">
+                    <input
+                        type="checkbox"
+                        id="override_denda"
+                        name="override_denda"
+                        value="1"
+                        <?= $overrideChecked ? 'checked' : '' ?>
+                    >
+                    Ubah denda manual
+                </label>
+                <input
+                    type="number"
+                    id="denda_manual"
+                    name="denda_manual"
+                    min="0"
+                    step="500"
+                    value="<?= $dendaManualDefault ?>"
+                    <?= $overrideChecked ? '' : 'disabled' ?>
+                >
+                <span class="hint">Untuk keringanan atau kebijakan khusus (mis. buku rusak/hilang).</span>
+            </div>
+            <?php } ?>
         </div>
         <div class="form-actions">
             <button name="kembali">Kembalikan buku</button>
@@ -262,15 +283,55 @@ $manualDendaValue =
     </form>
 
     <script>
-        const peminjamanSelect = document.getElementById('id_peminjaman');
-        const tanggalPengembalianInput = document.getElementById('tanggal_pengembalian');
+        const TARIF_DENDA = <?= (int)TARIF_DENDA ?>;
 
-        peminjamanSelect.addEventListener('change', function () {
-            const tanggalKembali = this.selectedOptions[0].dataset.tanggalKembali;
-            if (tanggalKembali) {
-                tanggalPengembalianInput.value = tanggalKembali;
+        const peminjamanSelect = document.getElementById('id_peminjaman');
+        const tanggalInput = document.getElementById('tanggal_pengembalian');
+        const infoHari = document.getElementById('info-hari');
+        const infoDenda = document.getElementById('info-denda');
+        const overrideBox = document.getElementById('override_denda');
+        const dendaManual = document.getElementById('denda_manual');
+
+        function formatRupiah(angka) {
+            return 'Rp ' + Number(angka).toLocaleString('id-ID');
+        }
+
+        function hitungDenda() {
+            const opt = peminjamanSelect.selectedOptions[0];
+
+            if (!opt || !tanggalInput.value) {
+                infoHari.textContent = '-';
+                infoDenda.textContent = 'Rp 0';
+                return;
             }
-        });
+
+            const jatuhTempo = new Date(opt.dataset.tanggalKembali);
+            const kembali = new Date(tanggalInput.value);
+
+            const selisihHari = Math.round((kembali - jatuhTempo) / 86400000);
+            const hari = Math.max(0, selisihHari);
+
+            infoHari.textContent = hari > 0 ? hari + ' hari terlambat' : 'Tepat waktu';
+
+            if (overrideBox && overrideBox.checked) {
+                infoDenda.textContent = formatRupiah(parseInt(dendaManual.value, 10) || 0) + ' (manual)';
+            } else {
+                infoDenda.textContent = formatRupiah(hari * TARIF_DENDA);
+            }
+        }
+
+        peminjamanSelect.addEventListener('change', hitungDenda);
+        tanggalInput.addEventListener('input', hitungDenda);
+
+        if (overrideBox) {
+            overrideBox.addEventListener('change', function () {
+                dendaManual.disabled = !this.checked;
+                hitungDenda();
+            });
+            dendaManual.addEventListener('input', hitungDenda);
+        }
+
+        hitungDenda();
     </script>
 
     <h2 class="panel-title">Riwayat pengembalian</h2>
@@ -286,17 +347,23 @@ $manualDendaValue =
                         <th>ID</th>
                         <th>Peminjaman</th>
                         <th>Anggota</th>
+                        <th>Jatuh tempo</th>
                         <th>Tanggal pengembalian</th>
+                        <th class="num">Terlambat</th>
                         <th class="num">Denda</th>
                     </tr>
                 </thead>
                 <tbody>
-                <?php while ($r = mysqli_fetch_assoc($data)) { ?>
+                <?php while ($r = mysqli_fetch_assoc($data)) {
+                    $hariTelat = hitungHariTerlambat($r['jatuh_tempo'], $r['tanggal_pengembalian']);
+                ?>
                     <tr>
                         <td class="id" data-label="ID"><?= $r['id_pengembalian'] ?></td>
                         <td class="id" data-label="Peminjaman">#<?= $r['id_peminjaman'] ?></td>
                         <td class="cell-title" data-label="Anggota"><?= htmlspecialchars($r['nama_anggota']) ?></td>
+                        <td data-label="Jatuh tempo"><?= htmlspecialchars($r['jatuh_tempo']) ?></td>
                         <td data-label="Tanggal pengembalian"><?= $r['tanggal_pengembalian'] ?></td>
+                        <td class="num" data-label="Terlambat"><?= $hariTelat > 0 ? $hariTelat . ' hari' : '-' ?></td>
                         <td class="num" data-label="Denda"><?= (int)$r['denda'] > 0 ? 'Rp ' . number_format((int)$r['denda'], 0, ',', '.') : '-' ?></td>
                     </tr>
                 <?php } ?>
